@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- ========================================================================
+     LAB-ONLY — Clickjacking (CWE-1021) proof-of-concept.
+
+     Serve this from any origin and open it in a browser.
+
+     AGAINST A VULNERABLE BUILD (no X-Frame-Options / no frame-ancestors):
+       the SecureShare dashboard renders inside the iframe below; an attacker
+       overlays a decoy button over the real "Delete" control (UI redressing).
+
+     AGAINST THE SECURE BUILD (this repo):
+       the browser refuses to render the frame —
+         "Refused to display '…' in a frame because it set
+          'X-Frame-Options' to 'DENY'."
+       and CSP 'frame-ancestors none' blocks it as defence-in-depth.
+       The iframe stays blank -> attack fails.
+     ==================================================================== -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Clickjacking test harness</title>
+  <style>
+    .decoy{position:absolute;top:120px;left:60px;z-index:2;
+           background:#4f8cff;color:#fff;padding:10px 18px;border-radius:8px}
+    iframe{position:absolute;top:0;left:0;opacity:0.5;width:900px;height:600px}
+  </style>
+</head>
+<body>
+  <div class="decoy">CLICK HERE TO WIN 🎁</div>
+  <iframe src="http://127.0.0.1:5000/dashboard"></iframe>
+  <p style="margin-top:620px">If the frame above is blank, framing is blocked (secure).</p>
+</body>
+</html>
