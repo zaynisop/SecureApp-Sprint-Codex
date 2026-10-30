@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# App data / secrets
+instance/
+*.db
+*.sqlite3
+.env
+uploads/
+!uploads/.gitkeep
+
+# Native build artifacts
+native/*.so
+native/*.dll
+native/*.o
+native/*.obj
+native/*.exe
+
+# Security scan outputs (kept selectively as evidence in docs/)
+*.sarif
+bandit-report.json
+semgrep-report.json
+zap-report.html
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
