@@ -13,7 +13,7 @@ instance/
 *.db
 *.sqlite3
 .env
-uploads/
+uploads/*
 !uploads/.gitkeep
 
 # Native build artifacts

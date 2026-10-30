@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>SecureShare</h1>
+  <p>A hardened file-sharing service built for the CYC386 DevSecOps sprint.</p>
+  <p><a class="btn" href="{{ url_for('auth.register') }}">Get started</a></p>
+</section>
+{% endblock %}
