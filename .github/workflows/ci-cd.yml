@@ -1,0 +1,157 @@
+name: SecureApp CI/CD (build · test · SAST · DAST)
+
+# Runs on every push and PR to main/develop (Section 6.6).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  security-events: write     # required to upload SARIF to the Security tab
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) BUILD + UNIT/INTEGRATION TESTS + native hardened build + overflow evidence
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build hardened native helper (stack-protector + FORTIFY)
+        working-directory: native
+        run: |
+          make secure
+          echo "Checking binary hardening (NX, RELRO, stack canary):"
+          command -v checksec >/dev/null 2>&1 || sudo apt-get install -y checksec || true
+          checksec --file=thumbgen_secure.so || true
+
+      - name: Run unit/integration + security tests
+        run: pytest tests -q --junitxml=test-results.xml
+
+      - name: Buffer-overflow BEFORE/AFTER evidence (AddressSanitizer)
+        working-directory: native
+        run: |
+          echo "=== VULNERABLE build under ASAN (expected: heap/stack overflow) ==="
+          make asan
+          ./thumb_vuln_asan 2>&1 | tee ../asan-vulnerable.log || true
+          echo "=== SECURE build (expected: clean exit, no overflow) ==="
+          gcc -fsanitize=address -O0 -g -DTHUMB_DEMO_MAIN thumbgen_secure.c -o thumb_secure_asan
+          ./thumb_secure_asan 2>&1 | tee ../asan-secure.log
+
+      - name: Upload test + overflow evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-test-evidence
+          path: |
+            test-results.xml
+            asan-vulnerable.log
+            asan-secure.log
+
+  # ---------------------------------------------------------------------------
+  # 2) SAST — Bandit (Python). GATE on production code; evidence on the PoC.
+  # ---------------------------------------------------------------------------
+  sast-bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install bandit==1.7.9
+
+      - name: Bandit detection evidence on vulnerable_demo (non-gating)
+        run: bandit -r vulnerable_demo -f txt -o bandit-vulnerable.txt || true
+
+      - name: Bandit GATE on production code (fail on HIGH/MEDIUM)
+        # Exits non-zero on any medium+ severity finding -> fails the build.
+        run: bandit -r app -ll -f txt -o bandit-app.txt
+
+      - name: Upload Bandit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-reports
+          path: |
+            bandit-app.txt
+            bandit-vulnerable.txt
+
+  # ---------------------------------------------------------------------------
+  # 3) SAST — Semgrep (OWASP Top-10 + security-audit). GATE on production code.
+  # ---------------------------------------------------------------------------
+  sast-semgrep:
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep scan (fail on findings in app/)
+        run: |
+          semgrep --config p/security-audit --config p/owasp-top-ten \
+                  --sarif --output semgrep.sarif --error app/
+      - name: Upload Semgrep SARIF to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+  # ---------------------------------------------------------------------------
+  # 4) SAST — CodeQL (Python + C native helper), GitHub-native.
+  # ---------------------------------------------------------------------------
+  codeql:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [python, cpp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          language: ${{ matrix.language }}
+      - name: Build native (cpp) for CodeQL
+        if: matrix.language == 'cpp'
+        working-directory: native
+        run: make secure
+      - name: Autobuild
+        if: matrix.language == 'python'
+        uses: github/codeql-action/autobuild@v3
+      - name: CodeQL analysis (uploads SARIF, fails on critical alerts)
+        uses: github/codeql-action/analyze@v3
+
+  # ---------------------------------------------------------------------------
+  # 5) DAST — OWASP ZAP baseline against the running app (non-gating report).
+  # ---------------------------------------------------------------------------
+  dast-zap:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+      - name: Start app in background
+        run: |
+          nohup python run.py > app.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf http://127.0.0.1:5000/login && break; sleep 1; done
+      - name: OWASP ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://127.0.0.1:5000"
+          fail_action: false            # report-only; findings reviewed in docs
+          allow_issue_writing: false
