@@ -1,0 +1,51 @@
+Run started:2026-10-30 18:27:11.748986
+
+Test results:
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: vulnerable_demo\01_command_injection_vuln.py:22:0
+21	import os
+22	import subprocess
+23	
+
+--------------------------------------------------
+>> Issue: [B605:start_process_with_a_shell] Starting a process with a shell, possible injection detected, security issue.
+   Severity: High   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/plugins/b605_start_process_with_a_shell.html
+   Location: vulnerable_demo\01_command_injection_vuln.py:28:11
+27	    cmd = f"zip /tmp/out.zip uploads/{filename}"
+28	    return os.system(cmd)                      # <-- shell interpretation
+29	
+
+--------------------------------------------------
+>> Issue: [B602:subprocess_popen_with_shell_equals_true] subprocess call with shell=True identified, security issue.
+   Severity: High   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/plugins/b602_subprocess_popen_with_shell_equals_true.html
+   Location: vulnerable_demo\01_command_injection_vuln.py:34:11
+33	    cmd = f"zip /tmp/out.zip uploads/{filename}"
+34	    return subprocess.check_output(cmd, shell=True)   # <-- shell=True is the bug
+35	
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 43
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 1
+		Medium: 0
+		High: 2
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 3
+Files skipped (0):
