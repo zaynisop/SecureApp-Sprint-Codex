@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · SecureShare{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>Upload a file</h2>
+  <form method="post" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="file" name="file" required>
+    <button class="btn" type="submit">Upload</button>
+  </form>
+  <p class="hint">Allowed: txt, pdf, png, jpg, jpeg, md, csv, log · max 10 MB</p>
+</section>
+
+<section class="card">
+  <h2>My files</h2>
+  {% if owned %}
+  <table>
+    <tr><th>Name</th><th>Size</th><th>Actions</th></tr>
+    {% for f in owned %}
+    <tr>
+      <td>{{ f.original_name }}</td>
+      <td>{{ f.size }} B</td>
+      <td class="actions">
+        <a href="{{ url_for('files.download', file_id=f.id) }}">Download</a>
+        <a href="{{ url_for('files.preview', file_id=f.id) }}">Preview</a>
+        <form class="inline" method="post" action="{{ url_for('files.share', file_id=f.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select name="grantee">
+            {% for u in users %}<option value="{{ u.username }}">{{ u.username }}</option>{% endfor %}
+          </select>
+          <button class="link">Share</button>
+        </form>
+        <form class="inline" method="post" action="{{ url_for('files.export', file_id=f.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="format" value="zip">
+          <button class="link">Export zip</button>
+        </form>
+        <form class="inline" method="post" action="{{ url_for('files.delete', file_id=f.id) }}"
+              onsubmit="return confirm('Delete this file?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="link danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p>No files yet.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Shared with me</h2>
+  {% if shared %}
+  <table>
+    <tr><th>Name</th><th>Owner</th><th>Actions</th></tr>
+    {% for f in shared %}
+    <tr>
+      <td>{{ f.original_name }}</td>
+      <td>{{ f.owner.username }}</td>
+      <td class="actions">
+        <a href="{{ url_for('files.download', file_id=f.id) }}">Download</a>
+        <a href="{{ url_for('files.preview', file_id=f.id) }}">Preview</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p>Nothing shared with you.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Change password</h2>
+  <form method="post" action="{{ url_for('auth.change_password') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Current <input name="current_password" type="password" required></label>
+    <label>New <input name="new_password" type="password" required></label>
+    <button class="btn" type="submit">Update</button>
+  </form>
+</section>
+{% endblock %}
