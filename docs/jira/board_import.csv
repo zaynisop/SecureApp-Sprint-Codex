@@ -1,0 +1,35 @@
+Issue Type,Issue Key,Summary,Epic Link,Assignee,Status,Labels,CWE,Linked PR,Linked Test
+Epic,SCRUM-1,PNE & CIA Mapping + Project Setup,,Nimra,Done,phase1,,,
+Epic,SCRUM-2,Threat Modeling & Quantitative Risk,,Nimra,Done,phase2,,,
+Epic,SCRUM-3,Secure Implementation (5 vuln classes),,Zain,Done,phase3,,,
+Epic,SCRUM-4,CI/CD & Automated Security Testing,,Zain,Done,phase4,,,
+Epic,SCRUM-5,Documentation Demo & Hardening,,Both,In Progress,phase5,,,
+Story,SCRUM-6,Asset inventory & stakeholder elicitation,SCRUM-1,Nimra,Done,pne,,,
+Story,SCRUM-7,CIA mapping of all protection needs,SCRUM-1,Nimra,Done,pne,,,
+Task,SCRUM-8,Initialize GitHub repo + branch protection,SCRUM-1,Zain,Done,git,,,
+Task,SCRUM-9,Create Jira board,SCRUM-1,Nimra,Done,jira,,,
+Task,SCRUM-10,Theme proposal & approval (SecureShare),SCRUM-1,Zain,Done,theme,,,
+Task,SCRUM-11,Argon2id password hashing,SCRUM-3,Zain,Done,auth,,PR#1,test_auth_and_overflow
+Story,SCRUM-12,Fix Buffer Overflow in native helper,SCRUM-3,Zain,Done,vuln,CWE-120,PR#2,asan
+Story,SCRUM-14,Fix IDOR with object-level authorization,SCRUM-3,Zain,Done,vuln,CWE-639,PR#3,test_idor
+Story,SCRUM-15,Fix Command Injection (argv + allow-list),SCRUM-3,Zain,Done,vuln,CWE-78,PR#4,test_command_injection
+Story,SCRUM-16,Fix CSRF (tokens + SameSite),SCRUM-3,Nimra,Done,vuln,CWE-352,PR#5,test_csrf
+Story,SCRUM-17,Fix Clickjacking (XFO + CSP),SCRUM-3,Nimra,Done,vuln,CWE-1021,PR#6,test_clickjacking
+Task,SCRUM-18,Secure session cookie flags,SCRUM-3,Nimra,Done,session,,PR#5,
+Task,SCRUM-19,Rate limiting + upload size cap,SCRUM-3,Zain,Done,dos,CWE-307,PR#4,
+Task,SCRUM-20,Move secrets to environment,SCRUM-3,Zain,Done,secrets,,PR#1,
+Task,SCRUM-21,Upload allow-list + secure_filename,SCRUM-3,Zain,Done,upload,,PR#3,
+Task,SCRUM-23,Confirm ORM parameterization (anti-SQLi),SCRUM-3,Nimra,Done,sqli,CWE-89,PR#1,
+Story,SCRUM-24,Context + Level-1 DFDs,SCRUM-2,Nimra,Done,tm,,,
+Story,SCRUM-25,STRIDE analysis per element,SCRUM-2,Nimra,Done,tm,,,
+Task,SCRUM-26,Attack trees (CmdInj Buffer Overflow),SCRUM-2,Nimra,Done,tm,,,
+Task,SCRUM-27,CVSS v3.1 scoring + risk register,SCRUM-2,Zain,Done,tm,,,
+Story,SCRUM-22,GitHub Actions pipeline fail-on-critical,SCRUM-4,Zain,Done,cicd,,,
+Task,SCRUM-28,Bandit gate on app/,SCRUM-4,Zain,Done,sast,,,
+Task,SCRUM-29,Semgrep OWASP Top-10 + SARIF,SCRUM-4,Zain,Done,sast,,,
+Task,SCRUM-30,CodeQL (python + cpp),SCRUM-4,Zain,Done,sast,,,
+Task,SCRUM-31,OWASP ZAP baseline DAST,SCRUM-4,Nimra,Done,dast,,,
+Story,SCRUM-32,Final IEEE report,SCRUM-5,Both,In Progress,docs,,,
+Task,SCRUM-33,SECURITY_IMPLEMENTATION + TEST_REPORT,SCRUM-5,Zain,Done,docs,,,
+Task,SCRUM-34,Demo video script + record,SCRUM-5,Both,To Do,demo,,,
+Task,SCRUM-35,Repo hygiene (README SECURITY CONTRIBUTING),SCRUM-5,Nimra,Done,docs,,,
