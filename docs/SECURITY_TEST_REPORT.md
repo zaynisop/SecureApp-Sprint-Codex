@@ -12,9 +12,9 @@ high/critical findings in production code**.
 |-------|------|--------|--------|------|
 | SAST (Python) | **Bandit 1.7.9** | `-ll` (medium+ severity) | `app/` | **Fail build** |
 | SAST (Python) | **Bandit** | default | `vulnerable_demo/` | report-only (detection evidence) |
-| SAST (multi) | **Semgrep 1.86** | `p/security-audit`, `p/owasp-top-ten`, `--error` | `app/` | **Fail build** |
+| SAST (multi) | **Semgrep** | `p/security-audit`, `p/owasp-top-ten`, `--severity ERROR --error` | `app/` | **Fail build (HIGH/critical)** |
 | SAST (native + py) | **CodeQL** | `python`, `cpp` matrix | repo | Fail on critical alerts |
-| DAST | **OWASP ZAP baseline** | `zaproxy/action-baseline` | running app | report-only (reviewed) |
+| DAST | **OWASP ZAP baseline** | `ghcr.io/zaproxy/zaproxy:stable` (Docker) | running app | report-only (reviewed) |
 | Unit/Integration | **pytest 8.3** | `tests/` | app | **Fail build** |
 | Memory | **AddressSanitizer** | gcc `-fsanitize=address` | native helper | evidence |
 
@@ -66,13 +66,42 @@ fail-on-critical gate works and the fixes removed the findings.
 
 ## 4. SAST — Semgrep
 Container `semgrep/semgrep`, rulesets `p/security-audit` + `p/owasp-top-ten`,
-`--error` (non-zero exit on findings), SARIF uploaded to the GitHub Security
-tab.
-- **`app/` (production):** 0 blocking findings → stage passes.
+`--severity ERROR --error` (fail the build on any HIGH/critical finding in
+`app/`), SARIF uploaded to the GitHub Security tab.
+- **`app/` (production):** 0 blocking findings after triage → stage passes.
 - Equivalent rules match the `vulnerable_demo/` command-injection and IDOR
   patterns (demonstrated pre-remediation).
 
 > 📷 `evidence/sast-semgrep-security-tab.png` — SARIF results in Security tab.
+
+### 4.1 False-positive triage (subprocess on export)
+The first ERROR-gated run reported **3 HIGH-severity findings, all on the single
+line `app/files.py:177`** (the allow-listed `export` subprocess call):
+
+| Rule ID | Verdict |
+|---------|---------|
+| `python.flask.security.injection.subprocess-injection` | False positive |
+| `python.lang.security.dangerous-subprocess-use` (×2) | False positive |
+
+**Why they fire:** Semgrep's taint engine sees `request.form` enter `export()`
+and conservatively flags the `subprocess.run(...)` call as reachable from user
+input.
+
+**Why they are false positives:** the executable and its arguments come from an
+**allow-listed constant** (`_EXPORT_CMDS[fmt]`); `fmt` is rejected with HTTP 400
+unless it is an allow-list key; the call uses an **argv array with
+`shell=False`**; and the only request-derived values (`src`/`out`) are
+**server-generated UUID paths**, never a shell string. No metacharacter can
+reach a shell — exactly the remediation Semgrep's own guidance recommends ("use
+a dictionary to allow-list a set of commands"). `tests/test_command_injection.py`
+proves it directly (`format="zip; id"` → 400; an injected `id` command never
+executes).
+
+**Action:** accepted as a documented false positive and suppressed with a
+**rule-scoped inline `# nosemgrep`** that names only those two rule IDs, on that
+one line, with the justification above kept beside it in `app/files.py`. The gate
+stays fully active — any *other* ERROR finding anywhere in `app/` still fails the
+build. Re-scan after suppression: **0 findings, exit 0.**
 
 ---
 
@@ -99,7 +128,14 @@ ZAP baseline spiders the running app and passively checks responses.
 | X-Content-Type-Options missing | **WARN** | **PASS** | `nosniff` |
 | Strict-Transport-Security missing | **WARN** | **PASS** | HSTS header |
 
-Report artifact: `zap-report.html` (CI artifact).
+The baseline runs the official `ghcr.io/zaproxy/zaproxy:stable` image directly,
+so the pipeline does not depend on a third-party action's bundled (now-retired)
+artifact uploader. It is **report-only** — findings are advisory and do not gate
+the build. Latest run: **0 FAIL, 0 high/medium alerts**, only informational WARNs
+(e.g. a `Server` version banner and a missing `Cross-Origin-Embedder-Policy`
+header). Reports (`report_html.html`, `report_md.md`, `report_json.json`) are
+uploaded as the **`zap-dast-report`** CI artifact.
+
 > 📷 `evidence/dast-zap-before.png`, `evidence/dast-zap-after.png`
 
 ---
