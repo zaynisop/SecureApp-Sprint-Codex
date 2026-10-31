@@ -174,6 +174,17 @@ def export(file_id):
     cmd = _EXPORT_CMDS[fmt] + [src, out]
     try:
         # shell=False (default): argv array, no shell interpretation.
+        #
+        # SAST triage (Semgrep, p/security-audit + p/owasp-top-ten): the two
+        # rules below flag ANY subprocess call that is data-flow-reachable from
+        # request data. Here the executable + args are an allow-listed CONSTANT
+        # (_EXPORT_CMDS[fmt]; `fmt` is rejected with HTTP 400 above unless it is
+        # an allow-list key), the call uses an argv ARRAY with shell=False, and
+        # the only request-derived values (src/out) are server-generated UUID
+        # paths — never a shell string. Command injection is therefore
+        # impossible, as proved by tests/test_command_injection.py. Accepted as
+        # a documented false positive; see docs/SECURITY_TEST_REPORT.md §4.1.
+        # nosemgrep: python.flask.security.injection.subprocess-injection.subprocess-injection,python.lang.security.dangerous-subprocess-use.dangerous-subprocess-use
         subprocess.run(cmd, check=True, timeout=15, capture_output=True)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         flash("Export failed.", "error")
