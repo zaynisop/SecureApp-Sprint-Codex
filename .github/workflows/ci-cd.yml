@@ -102,9 +102,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Semgrep scan (fail on HIGH/critical findings in app/)
         run: |
-          # Report all findings to SARIF; fail the build only on ERROR
-          # (high/critical) severity. Low/medium audit advisories are
-          # surfaced in the Security tab but do not break the build.
+          # Gate on ERROR (high/critical) severity only: the build fails on any
+          # ERROR finding in production code. One ERROR rule (subprocess use on
+          # the allow-listed export) is a triaged FALSE POSITIVE, suppressed
+          # inline in app/files.py with a written justification and proof tests
+          # (see docs/SECURITY_TEST_REPORT.md §4.1). The scoped `# nosemgrep`
+          # silences only that rule on that line; every other ERROR finding
+          # anywhere in app/ still breaks the build. SARIF -> Security tab.
           semgrep --config p/security-audit --config p/owasp-top-ten \
                   --sarif --output semgrep.sarif --severity ERROR --error app/
       - name: Upload Semgrep SARIF to Security tab
@@ -151,10 +155,29 @@ jobs:
       - name: Start app in background
         run: |
           nohup python run.py > app.log 2>&1 &
-          for i in $(seq 1 20); do curl -sf http://127.0.0.1:5000/login && break; sleep 1; done
-      - name: OWASP ZAP baseline scan
-        uses: zaproxy/action-baseline@v0.12.0
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:5000/login && break; sleep 1; done
+          curl -sf http://127.0.0.1:5000/login >/dev/null \
+            || { echo "App failed to start"; cat app.log; exit 1; }
+
+      - name: OWASP ZAP baseline scan (DAST, report-only)
+        # Run the official ZAP image directly instead of zaproxy/action-baseline,
+        # whose bundled actions/upload-artifact@v3 is now rejected by GitHub
+        # ("Create Artifact Container failed ... not valid", HTTP 400) and failed
+        # the job even though the scan itself passed. Baseline findings are
+        # advisory for this lab, so a non-zero ZAP exit does NOT fail the build;
+        # the JSON/MD/HTML reports are uploaded as an artifact below.
+        run: |
+          mkdir -p zap-out && chmod 0777 zap-out
+          docker run --rm --network host \
+            -v "$PWD/zap-out:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://127.0.0.1:5000 \
+              -J report_json.json -w report_md.md -r report_html.html \
+            || echo "ZAP baseline finished with warnings (report-only, non-gating)."
+
+      - name: Upload ZAP DAST report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          target: "http://127.0.0.1:5000"
-          fail_action: false            # report-only; findings reviewed in docs
-          allow_issue_writing: false
+          name: zap-dast-report
+          path: zap-out/
